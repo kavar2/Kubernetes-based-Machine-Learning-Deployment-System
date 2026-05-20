@@ -1,0 +1,78 @@
+from flask import Flask, request, jsonify
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+
+# -------------------------
+# Train Model
+# -------------------------
+
+iris = load_iris()
+
+X = iris.data
+y = iris.target
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
+
+model = RandomForestClassifier()
+model.fit(X_train, y_train)
+
+accuracy = model.score(X_test, y_test)
+
+print(f"Model Accuracy: {accuracy*100:.2f}%")
+
+# -------------------------
+# Flask API
+# -------------------------
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return f"""
+    <h2>Kubernetes-based ML Deployment System</h2>
+    <p>Model is running successfully</p>
+    <p>Accuracy: {accuracy*100:.2f}%</p>
+    <p>Use /predict endpoint for predictions</p>
+    """
+
+@app.route("/predict", methods=["POST"])
+def predict():
+
+    try:
+        data = request.json["features"]
+
+        prediction = model.predict([data])[0]
+
+        labels = {
+            0:"Setosa",
+            1:"Versicolor",
+            2:"Virginica"
+        }
+
+        return jsonify({
+            "input": data,
+            "prediction_class": int(prediction),
+            "flower_name": labels[prediction]
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        })
+
+# -------------------------
+# Run Application
+# -------------------------
+
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
